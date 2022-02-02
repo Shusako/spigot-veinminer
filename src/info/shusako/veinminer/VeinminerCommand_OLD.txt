@@ -1,0 +1,307 @@
+package info.shusako.veinminer;
+
+import info.shusako.veinminer.enums.ActivationMode;
+import info.shusako.veinminer.enums.RadiusType;
+import info.shusako.veinminer.enums.VeinSearchType;
+import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * Created by Shusako on 12/14/2018.
+ * For project Minecraft Veinminer Plugin, 2018
+ * <p>
+ * Overall really disappointed in this class, could easily be done better.
+ */
+public class VeinminerCommand_OLD implements CommandExecutor, TabCompleter {
+
+    /*
+     * veinminer
+     * get/set
+     * my/player/server
+     * [player] max_blocks/particles_per_edge/open_duration
+     * <max_blocks/particles_per_edge/open_duration>
+     *
+     * {SCRAPED} veinminer set:max_blocks:50 my
+     * veinminer set server config.min/max/default <value>
+     *
+     * {NOT NEEDED} veinminer help
+     */
+
+    private static final String[] TARGET_STRINGS = { "my", "server", "player" };
+    private static final String[] ACTION_STRINGS = { "get", "set" };
+    private static final String[] CONFIG_NAMES = { "max_blocks", "particles_per_edge", "open_duration",
+            "particles_enabled", "sound_enabled", "sound_volume", "particle", "sound", "vein_search_type",
+            "activation_mode", "blocks_per_tick", "tick_skip", "max_radius", "radius_type" };
+    private static final Class[] CONFIG_TYPE = { Integer.class, Integer.class, Integer.class, Integer.class, Integer
+            .class, Integer.class, Particle.class, Sound.class, VeinSearchType.class, ActivationMode.class, Integer
+            .class, Integer.class, Integer.class, RadiusType.class };
+    private static final String[] SERVER_CONFIG_EXTENSIONS = { "min", "max", "default" };
+    private static final String[] SERVER_CONFIG_NAMES;
+
+    static {
+        SERVER_CONFIG_NAMES = new String[CONFIG_NAMES.length * SERVER_CONFIG_EXTENSIONS.length];
+        int i = 0;
+        for(String value : CONFIG_NAMES) {
+            for(String attribute : SERVER_CONFIG_EXTENSIONS) {
+                SERVER_CONFIG_NAMES[i++] = value + "." + attribute;
+            }
+        }
+    }
+
+    // sorry
+    @Override
+    public boolean onCommand(CommandSender commandSender, Command command, String s, String[] strings) {
+        int offset = 0;
+        if(strings.length >= 2 && !Utils.arrayContains(TARGET_STRINGS, strings[1])) {
+            commandSender.sendMessage(ChatColor.GRAY + "Invalid target string " + ChatColor.RED + strings[1] +
+                    ChatColor.GRAY + ". Valid target strings: " + ChatColor.GREEN + Arrays.toString(TARGET_STRINGS));
+            return true;
+        }
+        if(strings.length >= 2 && strings[1].equalsIgnoreCase("player"))
+            offset++;
+
+        String action = "";
+        if(strings.length >= 1)
+            action = strings[0];
+
+        String configLocation = "";
+        String target = "";
+        String providedConfigName = "";
+        String value = "";
+
+        if((strings.length == 4 && offset == 1) || (strings.length == 3 && offset == 0)) {
+            // [X] 3,0 veinminer get/set my/server         m_b/p_p_e/o_d
+            // [X] 4,1 veinminer get     player            [player]        m_b/p_p_e/o_d
+            target = strings[1 + offset];
+            providedConfigName = strings[2 + offset];
+        } else if((strings.length == 4 && offset == 0) || (strings.length == 5 && offset == 1)) {
+            // [X] 4,0 veinminer set     my/server         m_b/p_p_e/o_d   <value>
+            // [X] 5,1 veinminer set     player            [player]        m_b/p_p_e/o_d     <value>
+            target = strings[1 + offset];
+            providedConfigName = strings[2 + offset];
+            value = strings[3 + offset];
+        } else {
+            return false;
+        }
+
+        // it's easier to do checking on all lowercase stuff
+        providedConfigName = providedConfigName.toLowerCase();
+        action = action.toLowerCase();
+        target = target.toLowerCase();
+        value = value.toLowerCase();
+
+        // the console isn't allowed to issue a target of 'my', for non-ambiguity sake
+        boolean isConsole = !(commandSender instanceof Player);
+        // validConfigs will become SERVER_CONFIG_NAME if the target is the server, CONFIG_NAMES otherwise
+        String[] validConfigs;
+
+        // if it's an invalid action, stop
+        if(!Utils.arrayContains(ACTION_STRINGS, action)) {
+            commandSender.sendMessage(ChatColor.GRAY + "Invalid action: " + ChatColor.RED + action + ChatColor.GRAY +
+                    ". Valid actions: " + ChatColor.GREEN + Arrays.toString(ACTION_STRINGS));
+            return true;
+        }
+        // change target to be the player name
+        if(target.equals("my")) {
+            // if the console tries to do a "my" target, stop
+            // I could change the target to the server, but I'd rather avoid ambiguity
+            if(isConsole) {
+                commandSender.sendMessage("Console is not a player, silly console. Console cannot use \"my\".");
+                return true;
+            } else {
+                target = commandSender.getName();
+            }
+        }
+
+        if(!commandSender.isOp() && !isConsole && !target.equalsIgnoreCase(commandSender.getName())) {
+            commandSender.sendMessage(ChatColor.GRAY + "You do not have permission to change this setting.");
+            return true;
+        }
+
+        if(target.equals("server")) {
+            configLocation = "server." + providedConfigName;
+            validConfigs = SERVER_CONFIG_NAMES;
+        } else {
+            String UUID = Utils.getUUIDFromName(target, commandSender.getServer());
+            if(UUID.isEmpty()) {
+                commandSender.sendMessage(ChatColor.GRAY + "Player \"" + ChatColor.RED + target + ChatColor.GRAY +
+                        "\" has not played on the server or does not exist.");
+                return true;
+            } else {
+                configLocation = "players." + UUID + "." + providedConfigName;
+            }
+            validConfigs = CONFIG_NAMES;
+        }
+
+        // if it's an invalid config name, stop
+        if(!Utils.arrayContains(validConfigs, providedConfigName)) {
+            commandSender.sendMessage(ChatColor.GRAY + "Invalid config name: " + ChatColor.RED + providedConfigName +
+                    ChatColor.GRAY + ". Valid config names: " + ChatColor.GREEN + Arrays.toString(CONFIG_NAMES));
+            return true;
+        }
+
+        int configIndex = Utils.arrayStartsWithIndexOf(CONFIG_NAMES, providedConfigName);
+        Class clazz = CONFIG_TYPE[configIndex];
+
+        if(action.equals("get")) {
+            int playersValue = Utils.getConfigValueCheckBounds(configLocation, providedConfigName);
+            String translatedValue = playersValue + "";
+            if(clazz.isEnum()) {
+                translatedValue = clazz.getEnumConstants()[playersValue].toString();
+            }
+
+            commandSender.sendMessage(ChatColor.GRAY + Utils.capitalize(target) + "'s " + providedConfigName + " is "
+                    + ChatColor.GREEN + translatedValue + ChatColor.GRAY + ".");
+            return true;
+        } else if(action.equals("set")) {
+            // TODO: set particle & sound
+            int valueInt = 0;
+            boolean shouldTryIntParse = true;
+            String message = "";
+
+            if(clazz.isEnum()) {
+                try {
+                    shouldTryIntParse = false;
+                    // currently saving enums as integers, feels bad
+                    Enum emum = Enum.valueOf(clazz, value.toUpperCase());
+                    for(int i = 0; i < clazz.getEnumConstants().length; i++) {
+                        if(clazz.getEnumConstants()[i] == emum) {
+                            valueInt = i;
+                            break;
+                        }
+                    }
+                } catch(IllegalArgumentException | NullPointerException e) {
+                    shouldTryIntParse = true;
+                    // :) this totally won't work how i want
+                    message = ChatColor.GRAY + "Invalid " + clazz.getName() + " provided, see tab complete.";
+                }
+            }
+
+            if(shouldTryIntParse) { // anything else will just be an int
+                try {
+                    // here i scream
+                    valueInt = Integer.parseInt(value);
+                } catch(NumberFormatException e) {
+                    if(message.isEmpty()) {
+                        commandSender.sendMessage(ChatColor.GRAY + "Malformed value " + ChatColor.RED + value +
+                                ChatColor.GRAY + ". Must be an integer.");
+                    } else {
+                        commandSender.sendMessage(message);
+                    }
+
+                    return true;
+                }
+            }
+
+            // provided name is fine since it's been verified
+            if(target.equals("server")) {
+                Utils.setConfigValue(configLocation, valueInt);
+                commandSender.sendMessage(ChatColor.GRAY + "Server's " + providedConfigName + " set to " + ChatColor
+                        .GREEN + valueInt + ChatColor.GRAY + ".");
+
+
+                if(providedConfigName.startsWith("particles_per_edge") && !providedConfigName.endsWith("" + "" + "" +
+                        ".default")) {
+                    Veinminer.minerListener.setupParticleOffsets();
+                }
+            } else {
+                int min = Utils.getConfigServerMin(providedConfigName);
+                int max = Utils.getConfigServerMax(providedConfigName);
+                if(valueInt < min) {
+                    Utils.setConfigValue(configLocation, min);
+                    commandSender.sendMessage(ChatColor.GRAY + "Value " + valueInt + " is too small. " +
+                            providedConfigName + " was set to server minimum: " + ChatColor.GREEN + min + ChatColor
+                            .GRAY + ".");
+                } else if(valueInt > max) {
+                    Utils.setConfigValue(configLocation, max);
+                    commandSender.sendMessage(ChatColor.GRAY + "Value " + valueInt + " is too large. " +
+                            providedConfigName + " was set to server maximum: " + ChatColor.GREEN + max + ChatColor
+                            .GRAY + ".");
+                } else {
+                    Utils.setConfigValue(configLocation, valueInt);
+                    commandSender.sendMessage(ChatColor.GRAY + Utils.capitalize(target) + "'s " + providedConfigName
+                            + " set to " + ChatColor.GREEN + valueInt + ChatColor.GRAY + ".");
+                }
+            }
+            return true;
+        } else {
+            // this shouldn't ever get here
+            commandSender.sendMessage(ChatColor.GRAY + "Invalid action: " + ChatColor.RED + action + ChatColor.GRAY +
+                    ". Valid actions: " + ChatColor.GREEN + Arrays.toString(ACTION_STRINGS));
+            return true;
+        }
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender commandSender, Command command, String s, String[] strings) {
+        List<String> options = new ArrayList<>();
+        if(command.getName().equalsIgnoreCase("veinminer")) {
+            int offset = 0;
+            if(strings.length >= 2 && strings[1].equalsIgnoreCase("player"))
+                offset++;
+
+            String[] currentOptions = { };
+
+            // [X] 1 veinminer get/set
+            // [X] 2 veinminer get/set my/player/server
+            // [X] 3 veinminer get/set player            [player]
+            // [X] 3 veinminer get/set my/server         m_b/p_p_e/o_d
+            // [X] 4 veinminer get/set player            [player]        m_b/p_p_e/o_d
+            // [X] 4 veinminer set     my/server         m_b/p_p_e/o_d   <value>
+            // [X] 5 veinminer set     player            [player]        m_b/p_p_e/o_d     <value>
+            if(strings.length == 1) {
+                currentOptions = ACTION_STRINGS;
+            } else if(strings.length == 2) {
+                currentOptions = TARGET_STRINGS;
+            } else if((strings.length == 3 && offset == 0) || (strings.length == 4 && offset == 1)) {
+                if(strings[1].equalsIgnoreCase("server")) {
+                    currentOptions = SERVER_CONFIG_NAMES;
+                } else {
+                    currentOptions = CONFIG_NAMES;
+                }
+            } else if(strings.length == 3 && offset == 1) {
+                OfflinePlayer[] offlinePlayers = commandSender.getServer().getOfflinePlayers();
+                Collection<? extends Player> onlinePlayers = commandSender.getServer().getOnlinePlayers();
+                currentOptions = new String[offlinePlayers.length + onlinePlayers.size()];
+
+                int i = 0;
+                for(; i < offlinePlayers.length; i++) {
+                    currentOptions[i] = offlinePlayers[i].getName();
+                }
+                for(Player player : onlinePlayers) {
+                    currentOptions[i++] = player.getName();
+                }
+            } else if((strings.length == 4 && offset == 0) || (strings.length == 5 && offset == 1)) {
+                currentOptions = new String[] { "<count>" };
+
+                int configIndex = Utils.arrayStartsWithIndexOf(CONFIG_NAMES, strings[2 + offset]);
+                if(configIndex >= 0 && CONFIG_TYPE[configIndex].isEnum()) {
+                    Class clazz = CONFIG_TYPE[configIndex];
+
+                    currentOptions = new String[clazz.getEnumConstants().length];
+                    for(int i = 0; i < clazz.getEnumConstants().length; i++) {
+                        currentOptions[i] = clazz.getEnumConstants()[i].toString();
+                    }
+                }
+            }
+
+            Utils.smartCompletion(options, currentOptions, strings[strings.length - 1]);
+        }
+
+        return options;
+    }
+
+
+}

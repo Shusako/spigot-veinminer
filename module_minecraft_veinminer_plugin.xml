@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="module_minecraft_veinminer_plugin" default="compile.module.minecraft_veinminer_plugin">
+  <dirname property="module.minecraft_veinminer_plugin.basedir" file="${ant.file.module_minecraft_veinminer_plugin}"/>
+  
+  <property name="module.jdk.home.minecraft_veinminer_plugin" value="${project.jdk.home}"/>
+  <property name="module.jdk.bin.minecraft_veinminer_plugin" value="${project.jdk.bin}"/>
+  <property name="module.jdk.classpath.minecraft_veinminer_plugin" value="${project.jdk.classpath}"/>
+  
+  <property name="compiler.args.minecraft_veinminer_plugin" value="-encoding UTF-8 -source 8 -target 8 ${compiler.args}"/>
+  
+  <property name="minecraft_veinminer_plugin.output.dir" value="${module.minecraft_veinminer_plugin.basedir}/out/production/Minecraft Veinminer Plugin"/>
+  <property name="minecraft_veinminer_plugin.testoutput.dir" value="${module.minecraft_veinminer_plugin.basedir}/out/test/Minecraft Veinminer Plugin"/>
+  
+  <path id="minecraft_veinminer_plugin.module.bootclasspath">
+    <!-- Paths to be included in compilation bootclasspath -->
+  </path>
+  
+  <path id="minecraft_veinminer_plugin.module.production.classpath">
+    <path refid="${module.jdk.classpath.minecraft_veinminer_plugin}"/>
+    <pathelement location="${basedir}/../../../Games/Minecraft/Server/spigot-1.13.2.jar"/>
+  </path>
+  
+  <path id="minecraft_veinminer_plugin.runtime.production.module.classpath">
+    <pathelement location="${minecraft_veinminer_plugin.output.dir}"/>
+    <pathelement location="${basedir}/../../../Games/Minecraft/Server/spigot-1.13.2.jar"/>
+  </path>
+  
+  <path id="minecraft_veinminer_plugin.module.classpath">
+    <path refid="${module.jdk.classpath.minecraft_veinminer_plugin}"/>
+    <pathelement location="${minecraft_veinminer_plugin.output.dir}"/>
+    <pathelement location="${basedir}/../../../Games/Minecraft/Server/spigot-1.13.2.jar"/>
+  </path>
+  
+  <path id="minecraft_veinminer_plugin.runtime.module.classpath">
+    <pathelement location="${minecraft_veinminer_plugin.testoutput.dir}"/>
+    <pathelement location="${minecraft_veinminer_plugin.output.dir}"/>
+    <pathelement location="${basedir}/../../../Games/Minecraft/Server/spigot-1.13.2.jar"/>
+  </path>
+  
+  
+  <patternset id="excluded.from.module.minecraft_veinminer_plugin">
+    <patternset refid="ignored.files"/>
+  </patternset>
+  
+  <patternset id="excluded.from.compilation.minecraft_veinminer_plugin">
+    <patternset refid="excluded.from.module.minecraft_veinminer_plugin"/>
+  </patternset>
+  
+  <path id="minecraft_veinminer_plugin.module.sourcepath">
+    <dirset dir="${module.minecraft_veinminer_plugin.basedir}">
+      <include name="src"/>
+    </dirset>
+  </path>
+  
+  
+  <target name="compile.module.minecraft_veinminer_plugin" depends="compile.module.minecraft_veinminer_plugin.production,compile.module.minecraft_veinminer_plugin.tests" description="Compile module Minecraft Veinminer Plugin"/>
+  
+  <target name="compile.module.minecraft_veinminer_plugin.production" depends="register.custom.compilers" description="Compile module Minecraft Veinminer Plugin; production classes">
+    <mkdir dir="${minecraft_veinminer_plugin.output.dir}"/>
+    <javac2 destdir="${minecraft_veinminer_plugin.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.minecraft_veinminer_plugin}/javac">
+      <compilerarg line="${compiler.args.minecraft_veinminer_plugin}"/>
+      <bootclasspath refid="minecraft_veinminer_plugin.module.bootclasspath"/>
+      <classpath refid="minecraft_veinminer_plugin.module.production.classpath"/>
+      <src refid="minecraft_veinminer_plugin.module.sourcepath"/>
+      <patternset refid="excluded.from.compilation.minecraft_veinminer_plugin"/>
+    </javac2>
+    
+    <copy todir="${minecraft_veinminer_plugin.output.dir}">
+      <fileset dir="${module.minecraft_veinminer_plugin.basedir}/src">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="compile.module.minecraft_veinminer_plugin.tests" depends="register.custom.compilers,compile.module.minecraft_veinminer_plugin.production" description="compile module Minecraft Veinminer Plugin; test classes" unless="skip.tests"/>
+  
+  <target name="clean.module.minecraft_veinminer_plugin" description="cleanup module">
+    <delete dir="${minecraft_veinminer_plugin.output.dir}"/>
+    <delete dir="${minecraft_veinminer_plugin.testoutput.dir}"/>
+  </target>
+</project>

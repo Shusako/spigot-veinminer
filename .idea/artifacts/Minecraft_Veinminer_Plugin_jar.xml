@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="Minecraft Veinminer Plugin:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Minecraft_Veinminer_Plugin_jar</output-path>
+    <root id="archive" name="Minecraft Veinminer Plugin.jar">
+      <element id="module-output" name="Minecraft Veinminer Plugin" />
+    </root>
+  </artifact>
+</component>

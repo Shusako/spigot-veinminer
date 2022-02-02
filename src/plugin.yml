@@ -1,0 +1,9 @@
+name: Veinminer
+version: 2.8.2
+author: Shusako
+main: info.shusako.veinminer.Veinminer
+api-version: 1.18
+commands:
+  veinminer:
+    description: Configure Veinminer settings per player and per server
+    usage: /veinminer (get/set) (my/player/server) [player] (max_blocks/particles_per_edge/open_duration)[.(min/max/default)] [<value>]

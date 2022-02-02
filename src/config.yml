@@ -1,0 +1,45 @@
+server:
+  max_blocks:
+    min: 0
+    max: 100
+    default: 100
+  particles_per_edge:
+    min: 2
+    max: 10
+    default: 2
+  open_duration:
+    min: 0
+    max: 20000
+    default: 2300
+  sound_volume:
+    min: 0
+    max: 100
+    default: 10
+  blocks_per_tick:
+    min: 1
+    max: 10
+    default: 5
+  tick_skip:
+    min: 1
+    max: 20
+    default: 4
+  max_radius:
+    min: 1
+    max: 10
+    default: 10
+  check_type:
+    default: TRUE
+  sound_enabled:
+    default: TRUE
+  particles_enabled:
+    default: TRUE
+  particle:
+    default: CRIT
+  sound:
+    default: BLOCK_BAMBOO_HIT
+  vein_search_type:
+    default: CUBE
+  activation_mode:
+    default: NONE
+  radius_type:
+    default: CHEBYSHEV
